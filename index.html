@@ -1,1 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>TalkApp AI</title>
+    <!-- 1. Load PyScript so Python can run in the browser -->
+    <link rel="stylesheet" href="https://pyscript.net" />
+    <script type="module" src="https://pyscript.net"></script>
+
+    <!-- 2. Automatically installs the openai library in your browser -->
+    <py-config>
+        packages = ["openai"]
+    </py-config>
+
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
+        #chatBox { height: 300px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; margin-bottom: 10px; background: #f9f9f9; }
+        #counter { font-weight: bold; margin-bottom: 15px; color: #333; }
+        .user-msg { color: blue; margin: 5px 0; }
+        .ai-msg { color: green; margin: 5px 0; }
+    </style>
+</head>
+<body>
+
+  <h2>🤖 TalkApp AI</h2>
+  
+  <!-- Counter display configured for 10 prompts -->
+  <div id="counter">Prompts Sent: <span id="countDisplay">0</span> / 10</div>
+
+  <!-- Chat Log screen -->
+  <div id="chatBox"></div>
+
+  <!-- User Input bar -->
+  <input type="text" id="userInput" placeholder="Type your prompt here..." style="width: 75%; padding: 8px;">
+  <button id="sendBtn" py-click="send">Send</button>
+
+  <!-- ==================== JAVASCRIPT (Browser Memory Lock) ==================== -->
+  <script>
+    // Reads your iPad/device browser memory. Default to 0.
+    let count = parseInt(localStorage.getItem("chatLimit")) || 0;
+
+    // Shows the count right away when the page loads
+    document.getElementById("countDisplay").innerText = count;
+
+    // Instantly freeze elements if user has already hit 10 prompts in the past
+    if (count >= 10) {
+      document.getElementById("userInput").disabled = true;
+      document.getElementById("sendBtn").disabled = true;
+      document.getElementById("userInput").placeholder = "Free limit reached (10/10).";
+    }
+  </script>
+
+  <!-- ==================== PYTHON (Your Model Request Logic) ==================== -->
+  <script type="py">
+    import js
+    import os
+    from openai import OpenAI
+    from pyscript import document
+
+    # Put your actual OpenAI API Key string between the quotes
+    client = OpenAI(api_key="YOUR_API_KEY_HERE")
+
+    def send(event):
+        input_element = document.getElementById("userInput")
+        prompt = input_element.value.strip()
+        
+        if not prompt:
+            return 
+
+        # Add 1 to the counter variable
+        js.count += 1
+        
+        # Save count securely into browser's notebook
+        js.localStorage.setItem("chatLimit", str(js.count))
+        
+        # Update text number layout
+        document.getElementById("countDisplay").innerText = str(js.count)
+
+        # Show what user typed on the screen
+        chat_box = document.getElementById("chatBox")
+        chat_box.innerHTML += f"<p class='user-msg'><b>You:</b> {prompt}</p>"
+        input_element.value = "" 
+
+        # Freeze the web interface immediately if threshold is hit
+        if js.count >= 10:
+            input_element.disabled = True
+            document.getElementById("sendBtn").disabled = True
+            input_element.placeholder = "Free limit reached (10/10)."
+
+        try:
+            # Your exact OpenAI block executing your specified model string
+            response = client.chat.completions.create(
+                model="gpt-6-luna",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            ai_text = response.choices[0].message.content
+            
+            # Print response text cleanly to the chat viewport
+            chat_box.innerHTML += f"<p class='ai-msg'><b>AI:</b> {ai_text}</p>"
+        except Exception as e:
+            chat_box.innerHTML += f"<p style='color:red;'><b>Error:</b> {str(e)}</p>"
+
+        # Automatically scroll viewport down to recent text
+        chat_box.scrollTop = chat_box.scrollHeight
+  </script>
+
+</body>
+</html>
 
